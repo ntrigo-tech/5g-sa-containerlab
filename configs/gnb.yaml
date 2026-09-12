@@ -1,0 +1,25 @@
+mcc: '999'
+mnc: '70'
+
+nci: '0x000000010'
+idLength: 32
+tac: 1
+
+# IP de este gNB hacia el AMF (N2, interfaz eth1)
+ngapIp: 10.0.51.20
+
+# IP de este gNB hacia el UPF (N3, red de management -- el UPF solo
+# tiene ruta a esta red, no a la subred punto a punto eth1)
+gtpIp: 172.20.50.100
+
+# IP del gNB en el enlace de "radio" simulado hacia el UE (eth2)
+linkIp: 10.0.60.1
+
+amfConfigs:
+  - address: 10.0.51.10
+    port: 38412
+
+slices:
+  - sst: 1
+
+ignoreStreamIds: true

@@ -1,0 +1,8 @@
+ausf:
+  sbi:
+    server:
+      - address: ausf
+        port: 7777
+    client:
+      scp:
+        - uri: http://scp:7777

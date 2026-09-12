@@ -1,0 +1,12 @@
+nssf:
+  sbi:
+    server:
+      - address: nssf
+        port: 7777
+    client:
+      scp:
+        - uri: http://scp:7777
+      nsi:
+        - uri: http://nrf:7777
+          s_nssai:
+            sst: 1

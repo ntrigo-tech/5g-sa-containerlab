@@ -1,0 +1,30 @@
+smf:
+  sbi:
+    server:
+      - address: smf
+        port: 7777
+    client:
+      scp:
+        - uri: http://scp:7777
+      nrf:
+        - uri: http://nrf:7777
+  pfcp:
+    server:
+      - address: smf
+    client:
+      upf:
+        - address: upf
+  gtpc:
+    server:
+      - address: smf
+  gtpu:
+    server:
+      - address: smf
+  session:
+    - subnet: 10.45.0.0/16
+      gateway: 10.45.0.1
+      dnn: internet
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
+  mtu: 1400

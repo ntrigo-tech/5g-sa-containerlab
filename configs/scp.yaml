@@ -1,0 +1,8 @@
+scp:
+  sbi:
+    server:
+      - address: scp
+        port: 7777
+    client:
+      nrf:
+        - uri: http://nrf:7777
