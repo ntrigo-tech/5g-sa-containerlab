@@ -1,0 +1,161 @@
+name: lab-5g-open5gs
+
+mgmt:
+  network: mgmt-5g
+  ipv4-subnet: 172.20.50.0/24
+
+topology:
+  # Nota importante:
+  # - Cada NF de Open5GS necesita SU propio archivo de configuración
+  #   (ej: configs/nrf.yaml, configs/amf.yaml, etc.) montado en
+  #   /opt/open5gs/etc/open5gs/<nf>.yaml dentro del contenedor.
+  # - Podés partir de las configs de ejemplo de:
+  #   https://github.com/Borjis131/docker-open5gs (compose-files/basic/configs)
+  #   o de las que trae la propia imagen en /opt/open5gs/etc/orig dentro del contenedor.
+  # - UPF necesita acceso a /dev/net/tun y modo privileged (crea una interfaz TUN).
+
+  nodes:
+    mongo:
+      kind: linux
+      image: mongo:6
+      binds:
+        - open5gs_db_data:/data/db
+    nrf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-nrfd
+      binds:
+        - configs/nrf.yaml:/opt/open5gs/etc/open5gs/nrf.yaml
+
+    scp:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-scpd
+      binds:
+        - configs/scp.yaml:/opt/open5gs/etc/open5gs/scp.yaml
+
+    ausf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-ausfd
+      binds:
+        - configs/ausf.yaml:/opt/open5gs/etc/open5gs/ausf.yaml
+
+    udr:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: sh /entrypoint.sh
+      env:
+        DB_URI: mongodb://mongo/open5gs
+      binds:
+        - configs/udr.yaml:/opt/open5gs/etc/open5gs/udr.yaml
+        - configs/udr-entrypoint.sh:/entrypoint.sh
+
+    udm:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-udmd
+      binds:
+        - configs/udm.yaml:/opt/open5gs/etc/open5gs/udm.yaml
+
+    pcf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: sh /entrypoint.sh
+      env:
+        DB_URI: mongodb://mongo/open5gs
+      binds:
+        - configs/pcf.yaml:/opt/open5gs/etc/open5gs/pcf.yaml
+        - configs/pcf-entrypoint.sh:/entrypoint.sh
+
+    bsf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-bsfd
+      binds:
+        - configs/bsf.yaml:/opt/open5gs/etc/open5gs/bsf.yaml
+
+    nssf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-nssfd
+      binds:
+        - configs/nssf.yaml:/opt/open5gs/etc/open5gs/nssf.yaml
+
+    amf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: sh /entrypoint.sh
+      user: "0:0"
+      cap-add:
+        - NET_ADMIN
+      binds:
+        - configs/amf.yaml:/opt/open5gs/etc/open5gs/amf.yaml
+        - configs/amf-entrypoint.sh:/entrypoint.sh
+
+    smf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-smfd
+      binds:
+        - configs/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
+
+    upf:
+      kind: linux
+      image: gradiant/open5gs:2.7.7
+      cmd: open5gs-upfd
+      user: "0:0"
+      cap-add:
+        - NET_ADMIN
+        - SYS_ADMIN
+      binds:
+        - configs/upf.yaml:/opt/open5gs/etc/open5gs/upf.yaml
+      devices:
+        - /dev/net/tun
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        # el propio open5gs-upfd crea la interfaz ogstun al arrancar;
+        # si tu imagen no lo hace automáticamente, descomentar:
+        # - ip tuntap add name ogstun mode tun
+        # - ip addr add 10.45.0.1/16 dev ogstun
+        # - ip link set ogstun up
+        - iptables -t nat -A POSTROUTING -s 10.45.0.0/16 ! -o ogstun -j MASQUERADE
+
+    webui:
+      kind: linux
+      image: gradiant/open5gs-webui:2.7.7
+      ports:
+        - 3000:9999
+      env:
+        DB_URI: mongodb://mongo/open5gs
+
+    gnb:
+      kind: linux
+      image: towards5gs/ueransim-gnb:latest
+      mgmt-ipv4: 172.20.50.100
+      # OJO: verificar el path real del binario/config dentro de la imagen
+      # (ver nota más abajo). Si el path no coincide, ajustar gnb-entrypoint.sh.
+      cmd: sh /entrypoint.sh
+      user: "0:0"
+      cap-add:
+        - NET_ADMIN
+      binds:
+        - configs/gnb.yaml:/ueransim/config/gnb.yaml
+        - configs/gnb-entrypoint.sh:/entrypoint.sh
+
+    ue:
+      kind: linux
+      image: towards5gs/ueransim-ue:latest
+      cmd: sh /entrypoint.sh
+      user: "0:0"
+      cap-add:
+        - NET_ADMIN
+      binds:
+        - configs/ue.yaml:/ueransim/config/ue.yaml
+        - configs/ue-entrypoint.sh:/entrypoint.sh
+
+  links:
+    # Plano de señalización N2 (gNB <-> AMF)
+    - endpoints: ["gnb:eth1", "amf:eth1"]
+    # Radio simulada gNB <-> UE
+    - endpoints: ["gnb:eth2", "ue:eth2"]
